@@ -1,0 +1,104 @@
+@charset "utf-8";
+
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+.radix-themes {
+  --default-font-family: var(--font-geist-sans);
+}
+* {
+  @apply touch-pan-x touch-pan-y;
+  word-wrap: break-word;
+  scroll-behavior: smooth;
+}
+html,
+body,
+button,
+input {
+  @apply antialiased;
+  direction: ltr;
+}
+html,
+body {
+  @apply h-full w-full select-none overflow-hidden overscroll-contain;
+  -webkit-overflow-scrolling: touch;
+}
+html {
+  text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  font-feature-settings:
+    "liga" 1,
+    "calt" 1;
+  font-variation-settings: normal;
+  font-synthesis-weight: none;
+  quotes: "“" "”" "‘" "’";
+}
+body {
+  @apply relative min-h-screen max-w-full cursor-default select-none break-words bg-[#131314] text-left text-white antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  -webkit-user-drag: none;
+  -ms-content-zooming: none;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  -ms-overflow-style: scrollbar;
+  scrollbar-width: "thin";
+}
+/* Improve icon rendering */
+svg {
+  @apply shrink-0;
+  text-rendering: optimizeLegibility;
+}
+svg path {
+  shape-rendering: geometricPrecision;
+}
+/* Improve default text legibility */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply text-balance;
+  & * {
+    text-wrap: inherit;
+  }
+}
+span,
+p {
+  @apply text-pretty;
+}
+/* Override default browser behavior */
+a,
+button,
+select,
+optgroup,
+header,
+img,
+video,
+canvas,
+[draggable] {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}
+button,
+select {
+  text-transform: none;
+  text-decoration: none;
+}
+canvas {
+  touch-action: none;
+  /* Improve blurriness at certain devicePixelRatios. */
+  image-rendering: pixelated; /* chromium */
+  image-rendering: -moz-crisp-edges; /* firefox. NOTE: must be declared *after* the above */
+  @apply absolute inset-0 w-full h-full;
+}
