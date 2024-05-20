@@ -4,10 +4,10 @@ import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 
 const WEBSITE_URL = "http://localhost:3000";
-const APP_NAME = "Chaos equations";
+const APP_NAME = "TDR Gilberto";
 
 const title = `${APP_NAME}`;
-const description = "Chaos equations dynamic system";
+const description = "TDR Gilberto";
 
 export const viewport: Viewport = {
   width: "device-width",
