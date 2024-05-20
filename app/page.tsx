@@ -236,14 +236,20 @@ export default function HomePage() {
                 Gilberto Samaritano Junior
               </Badge>
               <Badge size="2" style={{ width: "fit-content" }}>
-                z² + c
+                f(z) = z² + c
               </Badge>
             </Flex>
             <Heading size="5" weight="bold" style={{ maxWidth: "20rem" }}>
               Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
               iterades en matemàtiques
             </Heading>
-            <Button onClick={() => reset_fractal(canvasRef.current!)}>
+            <Text size="2" color="gray" style={{ maxWidth: "20rem" }}>
+              Fes clic per a augmentar la escala del fractal
+            </Text>
+            <Button
+              style={{ width: "fit-content" }}
+              onClick={() => reset_fractal(canvasRef.current!)}
+            >
               Reiniciar
             </Button>
           </Flex>
