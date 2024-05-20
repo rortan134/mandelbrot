@@ -80,7 +80,6 @@ export default function RootLayout({
           accentColor="ruby"
           grayColor="sage"
           panelBackground="solid"
-          scaling="95%"
           radius="full"
           appearance="dark"
         >

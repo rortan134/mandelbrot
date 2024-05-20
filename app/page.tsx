@@ -1,503 +1,223 @@
 "use client";
 
 import "@radix-ui/themes/styles.css";
-import { Flex, Text, Button, Box } from "@radix-ui/themes";
+import {
+  Flex,
+  Section,
+  Container,
+  Heading,
+  Button,
+  Text,
+  Badge,
+} from "@radix-ui/themes";
 import * as React from "react";
-import * as THREE from "three";
 
 export const dynamic = "error";
 
-let i;
-
-// Time variables and constants
-const deltaMaximum = 1e-3;
-const deltaMinimum = 1e-7;
-const deltaPerStep = 1e-5;
-const tStart = -2.5;
-const tEnd = 3.0;
-let rollingDelta = deltaPerStep;
-
-// Computational and simulation variables
-const iters = 512;
-const steps = 512;
-let t = tStart;
-let params: number[] = [];
-let camera: THREE.OrthographicCamera;
-let scene: THREE.Scene;
-let renderer: THREE.WebGLRenderer;
-let uniforms: Record<string, Omit<THREE.Uniform, "clone">>;
-
-// Base27 conversion
-const CHAR_TO_N: Record<string, number> = {
-  _: 0,
-  A: 1,
-  N: 14,
-  B: 2,
-  O: 15,
-  C: 3,
-  P: 16,
-  D: 4,
-  Q: 17,
-  E: 5,
-  R: 18,
-  F: 6,
-  S: 19,
-  G: 7,
-  T: 20,
-  H: 8,
-  U: 21,
-  I: 9,
-  V: 22,
-  J: 10,
-  W: 23,
-  K: 11,
-  X: 24,
-  L: 12,
-  Y: 25,
-  M: 13,
-  Z: 26,
-};
-
-function clamp(num: number, min: number, max: number) {
-  return num <= min ? min : num >= max ? max : num;
-}
-
-function floatEquals(a: number, b: number) {
-  return Math.abs(b - a) < 0.001;
-}
-
-function getRandomChaosParameters() {
-  const p = [];
-  for (i = 0; i < 18; i++) {
-    const r = Math.floor(Math.random() * 3);
-    if (r === 0) {
-      p[i] = 1.0;
-    } else if (r === 1) {
-      p[i] = -1.0;
-    } else {
-      p[i] = 0.0;
-    }
-  }
-  return p;
-}
+const color = [200, 0, 255] as const;
+const divergence_threshold = 50;
+const depth = 300;
+const zoom_amount = 0.8;
 
 export default function HomePage() {
-  // DOM variables
-  let windowW = window.innerWidth;
-  let windowH = window.innerHeight;
-  // Viewport in world units
-  const screenWorldUnits = new THREE.Vector2(5.0, (5.0 * windowH) / windowW);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const locationRef = React.useRef([-0.5, 0] as [number, number]);
+  const scaleRef = React.useRef(2);
 
-  function getOrCreateInitialURLParameter() {
-    try {
-      // Get code hash from url and check its format
-      const hash = window.location.hash.substr(1);
-      if (RegExp("[A-Za-z_]{6}").test(hash)) return decodeStringToParams(hash);
-    } catch (err) {}
-    return getRandomChaosParameters();
-  }
+  // Plot the mandelbrot function on the canvas
+  function draw_mandelbrot(
+    location: [number, number],
+    scale: number,
+    divergence_threshold: number,
+    depth: number,
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+  ) {
+    const escape_value = divergence_threshold * divergence_threshold;
+    const width = canvas.width;
+    const height = canvas.height;
+    const image_data = ctx.getImageData(0, 0, width, height);
+    const rgb = new Uint8ClampedArray(image_data.data.buffer);
+    const start = performance.now();
 
-  const computeVertexArray = new Float32Array(iters * steps * 3);
-  const computeBufferGeometry = new THREE.BufferGeometry();
-  computeBufferGeometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(computeVertexArray, 3),
-  );
-
-  function createVirtualCamera() {
-    const camera = new THREE.OrthographicCamera(
-      screenWorldUnits.x / -2,
-      screenWorldUnits.x / 2,
-      screenWorldUnits.y / 2,
-      screenWorldUnits.y / -2,
-      1,
-      1000,
-    );
-    camera.position.z = 10;
-    return camera;
-  }
-
-  function createScene() {
-    return new THREE.Scene();
-  }
-
-  function createSceneRenderer() {
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      precision: "lowp",
-      depth: false,
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    return renderer;
-  }
-
-  function appendSceneRendererToDOM() {
-    const container = document.getElementById("main");
-    if (container) container.appendChild(renderer.domElement);
-  }
-
-  function getVisualShaderMaterial() {
-    uniforms = {
-      iters: { value: iters },
-      steps: { value: steps },
-      cpuTime: { value: t },
-      deltaTime: { value: 0.01 },
-      px: { value: null },
-      py: { value: null },
-      pixelRatio: { value: window.devicePixelRatio },
-      colorTexture: { value: createVertexColorTexture() },
-    };
-
-    return new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: `
-        varying vec3 vColor;
-
-        uniform float iters;
-        uniform float steps;
-        uniform mat3 px;
-        uniform mat3 py;
-        uniform float cpuTime;
-        uniform float deltaTime;
-        uniform float pixelRatio;
-        uniform sampler2D colorTexture;
-
-        const int MAX_ITERATIONS = 2048;
-
-        void main() {
-          int thisIter = int(position.x);
-          float t = cpuTime + deltaTime * position.y;
-
-          vec3 pos = vec3(t, t, t);
-
-          for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
-            if (iter > thisIter){
-              break;
-            }
-
-            vec3 xxyytt = pos * pos; // x*x, y*y, t*t combinations
-            vec3 xyxzyz = pos.xxy * pos.yzz; // x*y, x*z, y*z combinations
-
-            pos.xy = vec2(
-              xxyytt.x * px[0][0] + xxyytt.y * px[1][0] + xxyytt.z * px[2][0] + xyxzyz.x * px[0][1] + xyxzyz.y * px[1][1] + xyxzyz.z * px[2][1] + pos.x * px[0][2] + pos.y * px[1][2] + pos.z * px[2][2],
-              xxyytt.x * py[0][0] + xxyytt.y * py[1][0] + xxyytt.z * py[2][0] + xyxzyz.x * py[0][1] + xyxzyz.y * py[1][1] + xyxzyz.z * py[2][1] + pos.x * py[0][2] + pos.y * py[1][2] + pos.z * py[2][2]
-            );
-          }
-
-          gl_PointSize = 1.8 * pixelRatio;
-          vec4 modelViewPosition = modelViewMatrix * vec4(pos.xy, 0., 1.);
-          gl_Position = projectionMatrix * modelViewPosition;
-
-          if (position.x > 1.0 && position.y > 1.0){
-            vColor = texture2D(colorTexture, position.xy / vec2(steps, iters)).rgb;
-          } else {
-            vColor = vec3(1., 1., 1.);
-          }
-        }`,
-      fragmentShader: `
-        varying vec3 vColor;
-
-        void main() {
-          gl_FragColor = vec4(vColor, 1.);
-        }
-      `,
-    });
-  }
-
-  function initializeVerticesOnPixelCoordinates() {
-    let rowCounter = 0;
-    let colCounter = 0;
-    for (i = 2; i < computeVertexArray.length; i += 3) {
-      computeVertexArray[i - 1] = rowCounter;
-      computeVertexArray[i - 2] = colCounter;
-
-      rowCounter++;
-      if (rowCounter >= iters) {
-        rowCounter = 0;
-        colCounter++;
-      }
-    }
-  }
-
-  function setNewChaosParameters(newParams: number[]) {
-    params = newParams;
-    // Update UI
-    createUI(params);
-    // Update Url with new code
-    window.location.hash = encodeParamsToString(params);
-  }
-
-  function onWindowResize() {
-    windowW = window.innerWidth;
-    windowH = window.innerHeight;
-    //   camera.aspect = windowW / windowH;
-    camera.updateProjectionMatrix();
-    renderer.setSize(windowW, windowH);
-  }
-
-  function initialize() {
-    initializeVerticesOnPixelCoordinates();
-    setNewChaosParameters(getOrCreateInitialURLParameter());
-    camera = createVirtualCamera();
-    scene = createScene();
-    renderer = createSceneRenderer();
-    appendSceneRendererToDOM();
-    scene.add(
-      new THREE.Points(computeBufferGeometry, getVisualShaderMaterial()),
-    );
-    window.addEventListener("resize", onWindowResize, false);
-    animate();
-  }
-
-  /**
-   * Encodes 18 parameters into a string
-   */
-  function encodeParamsToString(params: number[]) {
-    const base27 = "_ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    let a = 0;
-    let n = 0;
-    let result = "";
-    for (i = 0; i < 18; i++) {
-      a = a * 3 + Math.floor(params[i]!) + 1;
-      n += 1;
-      if (n === 3) {
-        result += base27.charAt(a);
-        a = 0;
-        n = 0;
-      }
-    }
-    return result;
-  }
-
-  function decodeStringToParams(str: string): number[] {
-    const params = [];
-    const ustr = str.toUpperCase();
-    for (i = 0; i < 18 / 3; i++) {
-      let a = 0;
-      const c = i < ustr.length ? ustr.charAt(i) : "_";
-      const char = CHAR_TO_N[c]!;
-      const charA = CHAR_TO_N.A!;
-      if (char >= charA && char <= CHAR_TO_N.Z!) {
-        a = char - charA + 1;
-      }
-      params[i * 3 + 2] = parseInt((a % 3).toString()) - 1;
-      a /= 3;
-      params[i * 3 + 1] = parseInt((a % 3).toString()) - 1;
-      a /= 3;
-      params[i * 3] = parseInt((a % 3).toString()) - 1;
-    }
-    return params;
-  }
-
-  function makeEquationStr(params: number[]) {
-    function SIGN_OR_SKIP(
-      param: number,
-      mathVariable: string,
-      isFirst = false,
-    ) {
-      let string = "";
-      if (!floatEquals(param, 0.0)) {
-        if (isFirst) {
-          if (floatEquals(param, -1.0)) {
-            string += "-";
-          }
-        } else {
-          if (floatEquals(param, -1.0)) {
-            string += " - ";
-          } else {
-            string += " + ";
-          }
-        }
-        string += mathVariable;
-      }
-
-      return string;
-    }
-
-    let equation = "";
-    equation += SIGN_OR_SKIP(params[0]!, "x\u00b2", true);
-    equation += SIGN_OR_SKIP(params[1]!, "y\u00b2");
-    equation += SIGN_OR_SKIP(params[2]!, "t\u00b2");
-    equation += SIGN_OR_SKIP(params[3]!, "xy");
-    equation += SIGN_OR_SKIP(params[4]!, "xt");
-    equation += SIGN_OR_SKIP(params[5]!, "yt");
-    equation += SIGN_OR_SKIP(params[6]!, "x");
-    equation += SIGN_OR_SKIP(params[7]!, "y");
-    equation += SIGN_OR_SKIP(params[8]!, "t");
-    return equation;
-  }
-
-  const ly = new Array(iters);
-  const lx = new Array(iters);
-
-  /**
-   * Only do the first iterations on the CPU, and check delta
-   */
-  function getNextDeltaTime() {
-    let foundInViewport = false;
-    rollingDelta = rollingDelta * 0.99 + deltaPerStep * 0.01;
-    let x = t;
-    let y = t;
-
-    // For all points in the series
-    for (i = 0; i < iters; i++) {
-      const xx = x * x;
-      const yy = y * y;
-      const tt = t * t;
-      const xy = x * y;
-      const xt = x * t;
-      const yt = y * t;
-      let nx =
-        xx * params[0]! +
-        yy * params[1]! +
-        tt * params[2]! +
-        xy * params[3]! +
-        xt * params[4]! +
-        yt * params[5]! +
-        x * params[6]! +
-        y * params[7]! +
-        t * params[8]!;
-      let ny =
-        xx * params[9]! +
-        yy * params[10]! +
-        tt * params[11]! +
-        xy * params[12]! +
-        xt * params[13]! +
-        yt * params[14]! +
-        x * params[15]! +
-        y * params[16]! +
-        t * params[17]!;
-
-      nx = clamp(nx, -10000, 10000);
-      ny = clamp(ny, -10000, 10000);
-
-      y = ny;
-      x = nx;
-
-      if (isPointWithinViewport(nx, ny)) {
-        // Square of distance is enough for comparison
-        const squaredDist =
-          (lx[i] - nx) * (lx[i] - nx) + (ly[i] - ny) * (ly[i] - ny);
-        rollingDelta = Math.min(
-          rollingDelta,
-          Math.max(deltaPerStep / (squaredDist + 1e-5), deltaMinimum),
+    for (let i = 0; i < width; i++) {
+      // Get the initial c value for our function f(z) = z^2 + c
+      const real_component = map(
+        i,
+        0,
+        width,
+        location[0] - scale,
+        location[0] + scale,
+      );
+      for (let j = 0; j < height; j++) {
+        const imaginary_component = map(
+          j,
+          0,
+          height,
+          location[1] - scale,
+          location[1] + scale,
         );
-        foundInViewport = true;
-        break;
+        let count = 0;
+
+        // Initial z values (z is complex)
+        let real = 0;
+        let imaginary = 0;
+
+        // Iterate f(z) = z^2 + c for a given number of steps
+        while (count < depth) {
+          const temp_real =
+            real * real - imaginary * imaginary + real_component;
+          imaginary = 2 * real * imaginary + imaginary_component;
+          real = temp_real;
+
+          // Exit the loop early if we determine that the function has diverged
+          if (real * real + imaginary * imaginary > escape_value) {
+            break;
+          }
+
+          count++;
+        }
+
+        const rgb_index = (i + j * width) * 4;
+
+        // Fill with black if the point is within the Mandelbrot set
+        if (count == depth) {
+          rgb[rgb_index] = 0;
+          rgb[rgb_index + 1] = 0;
+          rgb[rgb_index + 2] = 0;
+        } else {
+          // Otherwise, color it progressively more intense as it took more iterations to diverge in our loop
+          const intensity = Math.sqrt(map(count, 0, depth, 0, 1));
+          rgb[rgb_index] = intensity * color[0];
+          rgb[rgb_index + 1] = intensity * color[1];
+          rgb[rgb_index + 2] = intensity * color[2];
+        }
       }
-
-      lx[i] = nx;
-      ly[i] = ny;
     }
-
-    if (!foundInViewport) return deltaMaximum;
-    if (isNaN(rollingDelta)) rollingDelta = deltaPerStep;
-
-    return rollingDelta;
+    const end = performance.now();
+    console.log(`Rendered in ${end - start}ms`);
+    ctx.putImageData(image_data, 0, 0);
   }
 
-  function updateShaderUniforms() {
-    // Reset animation
-    if (t > tEnd) {
-      // New params (equation)
-      setNewChaosParameters(getRandomChaosParameters());
-      t = tStart;
-    }
+  // Map an input in a given range to another range
+  function map(
+    input: number,
+    input_min: number,
+    input_max: number,
+    output_min: number,
+    output_max: number,
+  ) {
+    const normalized_input = (input - input_min) / (input_max - input_min);
+    const mapped_input =
+      output_min + normalized_input * (output_max - output_min);
+    return mapped_input;
+  }
 
-    const paramsX = new THREE.Matrix3();
-    const paramsY = new THREE.Matrix3();
+  // Zooming and keeping clicked pixel in place on screen for smoothness
+  function handle_zoom(event: React.MouseEvent, canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
 
-    paramsX.set(
-      params[0]!,
-      params[1]!,
-      params[2]!,
-      params[3]!,
-      params[4]!,
-      params[5]!,
-      params[6]!,
-      params[7]!,
-      params[8]!,
+    // Get where the user clicked in terms of the canvas width/height coordinate system
+    const click_x = event.clientX;
+    const click_y = event.clientY;
+
+    // Map the user's click to the range of real/imaginary numbers represented on the canvas
+    const mapped_x = map(
+      click_x,
+      0,
+      window.innerWidth,
+      locationRef.current[0] - scaleRef.current,
+      locationRef.current[0] + scaleRef.current,
     );
-    paramsY.set(
-      params[9]!,
-      params[10]!,
-      params[11]!,
-      params[12]!,
-      params[13]!,
-      params[14]!,
-      params[15]!,
-      params[16]!,
-      params[17]!,
+    const mapped_y = map(
+      click_y,
+      0,
+      window.innerHeight,
+      locationRef.current[1] - scaleRef.current,
+      locationRef.current[1] + scaleRef.current,
     );
 
-    const deltaTime = getNextDeltaTime();
-    uniforms.px!.value = paramsX;
-    uniforms.py!.value = paramsY;
-    uniforms.deltaTime!.value = deltaTime;
-    uniforms.cpuTime!.value = t;
-    t += deltaTime * steps;
+    // Move the origin
+    locationRef.current[0] =
+      mapped_x - (mapped_x - locationRef.current[0]) * zoom_amount;
+    locationRef.current[1] =
+      mapped_y - (mapped_y - locationRef.current[1]) * zoom_amount;
+    // Zoom and draw
+    scaleRef.current *= zoom_amount;
+
+    draw_mandelbrot(
+      locationRef.current,
+      scaleRef.current,
+      divergence_threshold,
+      depth,
+      canvas,
+      ctx,
+    );
   }
 
-  function isPointWithinViewport(x: number, y: number) {
-    const sx = screenWorldUnits.x * 0.5;
-    const sy = screenWorldUnits.y * 0.5;
-    return x > -sx && x < sx && y > -sy && y < sy;
+  // Go back to original fractal
+  function reset_fractal(canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+    if (!ctx) return;
+    locationRef.current = [-0.5, 0];
+    scaleRef.current = 1.5;
+    draw_mandelbrot(
+      locationRef.current,
+      scaleRef.current,
+      divergence_threshold,
+      depth,
+      canvas,
+      ctx,
+    );
   }
 
-  function createVertexColorTexture(): THREE.DataTexture {
-    const data = new Uint8Array(steps * iters * 3);
+  // Clear the canvas
+  function reset_canvas(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+  ) {
+    ctx.fillStyle = "#0E0B16";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-    for (let i = 0; i < steps * iters; i++) {
-      const color = getNextColor(i);
-      const stride = i * 3;
-      data[stride] = color.r * 255;
-      data[stride + 1] = color.g * 255;
-      data[stride + 2] = color.b * 255;
+  // Make everything fit on screen
+  function fit(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    if (window.innerWidth * 0.65 > window.innerHeight * 0.8) {
+      canvas.height = Math.floor(window.innerHeight * 0.8 * 0.75);
+      canvas.width = canvas.height;
+    } else {
+      canvas.width = Math.floor(window.innerWidth * 0.65 * 0.75);
+      canvas.height = canvas.width;
     }
-
-    const texture = new THREE.DataTexture(data, steps, iters, THREE.RGBFormat);
-    texture.needsUpdate = true;
-    return texture;
-  }
-
-  function getNextColor(pos: number): THREE.Color {
-    const r = Math.min(255, 90 + ((pos * 11909) % 256));
-    const g = Math.min(255, 90 + ((pos * 52973) % 256));
-    const b = Math.min(255, 90 + ((pos * 44111) % 256));
-    return new THREE.Color(r / 255.0, g / 255.0, b / 255.0);
-  }
-
-  function createUI(params: number[]) {
-    document.getElementById("chaos-ui--x-equation").textContent =
-      "x' = " + makeEquationStr(params.slice(0, 9));
-    document.getElementById("chaos-ui--y-equation").textContent =
-      "y' = " + makeEquationStr(params.slice(9, 18));
-    document.getElementById("chaos-ui--code").textContent =
-      "Code: " + encodeParamsToString(params);
-    document.getElementById("chaos-ui--time").textContent =
-      "t = " + t.toFixed(6);
-  }
-
-  function updateUI() {
-    const element = document.getElementById("chaos-ui--time");
-    if (element) element.textContent = "t = " + t.toFixed(6);
-  }
-
-  function animate() {
-    updateUI();
-    updateShaderUniforms();
-    renderer.render(scene, camera);
-    window.requestAnimationFrame(animate);
+    reset_canvas(canvas, ctx);
   }
 
   React.useLayoutEffect(() => {
-    initialize();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", {
+      willReadFrequently: true,
+    });
+    if (!ctx) return;
+
+    const res = () => fit(canvas, ctx);
+    // Ensure everything fits on screen when resized
+    window.addEventListener("resize", res);
+    draw_mandelbrot(
+      locationRef.current,
+      scaleRef.current,
+      divergence_threshold,
+      depth,
+      canvas,
+      ctx,
+    );
+
     return () => {
-      const elements = document.getElementsByTagName("canvas");
-      const container = document.getElementById("main");
-      if (elements && container)
-        [...elements].forEach((e) => container.removeChild(e));
+      window.removeEventListener("resize", res);
+      reset_canvas(canvas, ctx);
     };
   }, []);
 
@@ -506,14 +226,51 @@ export default function HomePage() {
       id="main"
       tabIndex={-1}
       role="main"
-      className="relative flex h-full max-h-screen flex-col items-center justify-center"
+      className="relative isolate h-screen w-full"
     >
-      <Flex gap="3" align="center" justify="between">
-        <span id="chaos-ui--x-equation"></span>
-        <span id="chaos-ui--y-equation"></span>
-        <span id="chaos-ui--time"></span>
-        <span id="chaos-ui--code"></span>
-      </Flex>
+      <Section>
+        <Container>
+          <Flex direction="column" gap="2">
+            <Flex gap="2">
+              <Badge size="2" style={{ width: "fit-content" }}>
+                Gilberto Samaritano Junior
+              </Badge>
+              <Badge size="2" style={{ width: "fit-content" }}>
+                z² + c
+              </Badge>
+            </Flex>
+            <Heading size="5" weight="bold" style={{ maxWidth: "20rem" }}>
+              Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
+              iterades en matemàtiques
+            </Heading>
+            <Button onClick={() => reset_fractal(canvasRef.current!)}>
+              Reiniciar
+            </Button>
+          </Flex>
+        </Container>
+      </Section>
+      <canvas
+        className="absolute inset-0 -z-10 h-full w-full"
+        ref={React.useCallback((node: HTMLCanvasElement | null) => {
+          if (node) {
+            canvasRef.current = node;
+            const ctx = node.getContext("2d", { willReadFrequently: true });
+            if (!ctx) return;
+            // Resize everything upon launch and plot initial fractal
+            fit(node, ctx);
+            // Draw Mandelbrot when the page opens
+            draw_mandelbrot(
+              locationRef.current,
+              scaleRef.current,
+              divergence_threshold,
+              depth,
+              node,
+              ctx,
+            );
+          }
+        }, [])}
+        onPointerDown={(event) => handle_zoom(event, canvasRef.current!)}
+      />
     </main>
   );
 }
