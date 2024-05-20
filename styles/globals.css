@@ -1,5 +1,6 @@
 @charset "utf-8";
 
+@import "tailwindcss/base";
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
@@ -100,5 +101,5 @@ canvas {
   /* Improve blurriness at certain devicePixelRatios. */
   image-rendering: pixelated; /* chromium */
   image-rendering: -moz-crisp-edges; /* firefox. NOTE: must be declared *after* the above */
-  @apply absolute inset-0 w-full h-full;
+  @apply absolute inset-0 h-full w-full;
 }
