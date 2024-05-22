@@ -222,10 +222,10 @@ export default function HomePage() {
           <Flex direction="column" gap="2" style={{maxWidth: "20rem"}}>
             <Flex gap="2" style={{ pointerEvents: "none"}}>
               <Badge size="2" style={{ width: "fit-content" }}>
-                Gilberto Samaritano Junior
+                f(z) = z² + c
               </Badge>
               <Badge size="2" style={{ width: "fit-content" }}>
-                f(z) = z² + c
+                Per: Gilberto Samaritano Junior
               </Badge>
             </Flex>
             <Heading size="5" weight="bold" style={{ maxWidth: "20rem", pointerEvents: "none" }}>
