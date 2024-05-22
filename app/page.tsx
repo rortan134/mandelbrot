@@ -217,10 +217,10 @@ export default function HomePage() {
       role="main"
       className="relative isolate h-screen w-full"
     >
-      <Section>
+      <Section style={{touchAction: "none"}}>
         <Container>
-          <Flex direction="column" gap="2">
-            <Flex gap="2">
+          <Flex direction="column" gap="2" style={{maxWidth: "20rem"}}>
+            <Flex gap="2" style={{ pointerEvents: "none"}}>
               <Badge size="2" style={{ width: "fit-content" }}>
                 Gilberto Samaritano Junior
               </Badge>
@@ -228,11 +228,11 @@ export default function HomePage() {
                 f(z) = z² + c
               </Badge>
             </Flex>
-            <Heading size="5" weight="bold" style={{ maxWidth: "20rem" }}>
+            <Heading size="5" weight="bold" style={{ maxWidth: "20rem", pointerEvents: "none" }}>
               Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
               iterades en matemàtiques
             </Heading>
-            <Text size="2" color="gray" style={{ maxWidth: "20rem" }}>
+            <Text size="2" color="gray" style={{ maxWidth: "20rem", pointerEvents: "none" }}>
               Fes clic per a augmentar la escala de la fractal
             </Text>
             <Button
