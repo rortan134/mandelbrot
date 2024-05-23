@@ -3,43 +3,47 @@
 import "@radix-ui/themes/styles.css";
 import {
   Flex,
-  Section,
   Container,
   Heading,
   Button,
   Text,
   Badge,
+  Strong,
 } from "@radix-ui/themes";
 import * as React from "react";
 
-export const dynamic = "error";
+export const dynamic = "force-static";
 
 const color = [200, 0, 255] as const;
 const divergencia = 50;
-const profundidad = 300;
+const profundidad = 400;
 const multiplicadorZoom = 0.8;
+const escape_value = divergencia * divergencia;
+const posicionInicial = [-0.5, 0] as [number, number];
 
 export default function HomePage() {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
-  const locationRef = React.useRef([-0.5, 0] as [number, number]);
+  const ctxRef = React.useRef<CanvasRenderingContext2D | null>(null);
+  if (!ctxRef.current && canvasRef.current) {
+    ctxRef.current = canvasRef.current.getContext("2d", {
+      willReadFrequently: true,
+    });
+  }
+  const positionRef = React.useRef(posicionInicial);
   const scaleRef = React.useRef(2);
 
   function dibuixar_mandelbrot(
     posicion: [number, number],
     escala: number,
-    valor_divergencia: number,
-    profundidad: number,
     canvas: HTMLCanvasElement,
     ctx: CanvasRenderingContext2D,
   ) {
-    const escape_value = valor_divergencia * valor_divergencia;
     const width = canvas.width;
     const height = canvas.height;
     const image_data = ctx.getImageData(0, 0, width, height);
     const rgb = new Uint8ClampedArray(image_data.data.buffer);
 
     for (let i = 0; i < width; i++) {
-      // Get the initial c value for our function f(z) = z^2 + c
       const componente_real = map(
         i,
         0,
@@ -56,7 +60,6 @@ export default function HomePage() {
           posicion[1] + escala,
         );
         let contador = 0;
-
         let real = 0;
         let imaginary = 0;
 
@@ -65,17 +68,14 @@ export default function HomePage() {
             real * real - imaginary * imaginary + componente_real;
           imaginary = 2 * real * imaginary + componente_imaginario;
           real = temp_real;
-
-          // Exit the loop early if we determine that the function has diverged
+          // Sortir del bucle abans d'hora si determinem que la funció ha divergit
           if (real * real + imaginary * imaginary > escape_value) {
             break;
           }
-
           contador++;
         }
 
         const rgb_index = (i + j * width) * 4;
-
         if (contador == profundidad) {
           // Punt no fa part de la fractal, el pintem de negre
           rgb[rgb_index] = 0;
@@ -90,7 +90,6 @@ export default function HomePage() {
         }
       }
     }
-
     ctx.putImageData(image_data, 0, 0);
   }
 
@@ -107,10 +106,10 @@ export default function HomePage() {
     return input_mapped;
   }
 
-  function handle_zoom(event: React.MouseEvent, canvas: HTMLCanvasElement) {
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
-
+  function handle_zoom(event: React.MouseEvent) {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
     const click_x = event.clientX;
     const click_y = event.clientY;
 
@@ -118,48 +117,34 @@ export default function HomePage() {
       click_x,
       0,
       window.innerWidth,
-      locationRef.current[0] - scaleRef.current,
-      locationRef.current[0] + scaleRef.current,
+      positionRef.current[0] - scaleRef.current,
+      positionRef.current[0] + scaleRef.current,
     );
     const mapped_y = map(
       click_y,
       0,
       window.innerHeight,
-      locationRef.current[1] - scaleRef.current,
-      locationRef.current[1] + scaleRef.current,
+      positionRef.current[1] - scaleRef.current,
+      positionRef.current[1] + scaleRef.current,
     );
 
-    locationRef.current[0] =
-      mapped_x - (mapped_x - locationRef.current[0]) * multiplicadorZoom;
-    locationRef.current[1] =
-      mapped_y - (mapped_y - locationRef.current[1]) * multiplicadorZoom;
+    positionRef.current[0] =
+      mapped_x - (mapped_x - positionRef.current[0]) * multiplicadorZoom;
+    positionRef.current[1] =
+      mapped_y - (mapped_y - positionRef.current[1]) * multiplicadorZoom;
     scaleRef.current *= multiplicadorZoom;
 
-    dibuixar_mandelbrot(
-      locationRef.current,
-      scaleRef.current,
-      divergencia,
-      profundidad,
-      canvas,
-      ctx,
-    );
+    dibuixar_mandelbrot(positionRef.current, scaleRef.current, canvas, ctx);
   }
 
-  function reiniciar_fractal(canvas: HTMLCanvasElement) {
-    const ctx = canvas.getContext("2d", {
-      willReadFrequently: true,
-    });
-    if (!ctx) return;
-    locationRef.current = [-0.5, 0];
-    scaleRef.current = 1.5;
-    dibuixar_mandelbrot(
-      locationRef.current,
-      scaleRef.current,
-      divergencia,
-      profundidad,
-      canvas,
-      ctx,
-    );
+  function reiniciar_fractal(_e: never) {
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+
+    positionRef.current = posicionInicial;
+    scaleRef.current = 2;
+    dibuixar_mandelbrot(positionRef.current, scaleRef.current, canvas, ctx);
   }
 
   function reiniciar_canvas(
@@ -184,25 +169,18 @@ export default function HomePage() {
     reiniciar_canvas(canvas, ctx);
   }
 
-  React.useLayoutEffect(function effect() {
+  React.useLayoutEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d", {
-      willReadFrequently: true,
-    });
-    if (!ctx) return;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
 
-    const res = () => recalcularVentana(canvas, ctx);
-    // Ensure everything fits on screen when resized
+    const res = () => {
+      recalcularVentana(canvas, ctx);
+      dibuixar_mandelbrot(positionRef.current, scaleRef.current, canvas, ctx);
+    };
+
     window.addEventListener("resize", res);
-    dibuixar_mandelbrot(
-      locationRef.current,
-      scaleRef.current,
-      divergencia,
-      profundidad,
-      canvas,
-      ctx,
-    );
+    dibuixar_mandelbrot(positionRef.current, scaleRef.current, canvas, ctx);
 
     return () => {
       window.removeEventListener("resize", res);
@@ -217,62 +195,59 @@ export default function HomePage() {
       role="main"
       className="relative isolate h-screen w-full"
     >
-      <Section style={{ touchAction: "none" }}>
-        <Container>
-          <Flex direction="column" gap="2" style={{ maxWidth: "20rem" }}>
-            <Flex gap="2" style={{ pointerEvents: "none" }}>
-              <Badge size="2" style={{ width: "fit-content" }}>
-                f(z) = z² + c
-              </Badge>
-              <Badge size="2" style={{ width: "fit-content" }}>
-                Per: Gilberto Samaritano Junior
-              </Badge>
-            </Flex>
-            <Heading
-              size="5"
-              weight="bold"
-              style={{ maxWidth: "20rem", pointerEvents: "none" }}
-            >
-              Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
-              iterades en matemàtiques
-            </Heading>
-            <Text
-              size="2"
-              color="gray"
-              style={{ maxWidth: "20rem", pointerEvents: "none" }}
-            >
-              Fes clic per a augmentar la escala de la fractal
-            </Text>
-            <Button
-              style={{ width: "fit-content" }}
-              onClick={() => reiniciar_fractal(canvasRef.current!)}
-            >
-              Reiniciar
-            </Button>
+      <Container
+        style={{
+          width: "100%",
+          maxWidth: "20rem",
+          minWidth: "0",
+          position: "absolute",
+          top: "2rem",
+          left: "2rem",
+        }}
+      >
+        <Flex direction="column" gap="2">
+          <Flex gap="2" style={{ pointerEvents: "none" }}>
+            <Badge size="2" style={{ width: "fit-content" }}>
+              f(z) = z² + c
+            </Badge>
+            <Badge size="2" style={{ width: "fit-content" }}>
+              Per: Gilberto Samaritano Junior
+            </Badge>
           </Flex>
-        </Container>
-      </Section>
+          <Heading size="5" weight="bold" style={{ pointerEvents: "none" }}>
+            Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
+            iterades en matemàtiques
+          </Heading>
+          <Text size="2" color="gray" style={{ pointerEvents: "none" }}>
+            Fes clic per <Strong>augmentar la escala</Strong> de la fractal
+          </Text>
+          <Button
+            style={{ width: "fit-content" }}
+            onClick={reiniciar_fractal}
+            onPointerDown={reiniciar_fractal}
+          >
+            Reiniciar
+          </Button>
+        </Flex>
+      </Container>
       <canvas
-        className="absolute inset-0 -z-10 h-full w-full"
+        className="absolute inset-0 -z-10 h-full w-full cursor-zoom-in"
         ref={React.useCallback((node: HTMLCanvasElement | null) => {
           if (node) {
             canvasRef.current = node;
             const ctx = node.getContext("2d", { willReadFrequently: true });
+            ctxRef.current = ctx;
             if (!ctx) return;
-            // Resize everything upon launch and plot initial fractal
             recalcularVentana(node, ctx);
-            // Draw Mandelbrot when the page opens
             dibuixar_mandelbrot(
-              locationRef.current,
+              positionRef.current,
               scaleRef.current,
-              divergencia,
-              profundidad,
               node,
               ctx,
             );
           }
         }, [])}
-        onPointerDown={(event) => handle_zoom(event, canvasRef.current!)}
+        onPointerDown={handle_zoom}
       />
     </main>
   );

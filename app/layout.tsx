@@ -3,11 +3,14 @@ import { Theme } from "@radix-ui/themes";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 
+export const dynamic = "force-static";
+
 const WEBSITE_URL = "http://localhost:3000";
 const APP_NAME = "TDR Gilberto";
 
 const title = `${APP_NAME}`;
 const description = "TDR Gilberto";
+
 
 export const viewport: Viewport = {
   width: "device-width",

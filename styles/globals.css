@@ -46,7 +46,6 @@ body {
   -ms-overflow-style: scrollbar;
   scrollbar-width: "thin";
 }
-/* Improve icon rendering */
 svg {
   @apply shrink-0;
   text-rendering: optimizeLegibility;
@@ -54,7 +53,6 @@ svg {
 svg path {
   shape-rendering: geometricPrecision;
 }
-/* Improve default text legibility */
 h1,
 h2,
 h3,
@@ -70,7 +68,6 @@ span,
 p {
   @apply text-pretty;
 }
-/* Override default browser behavior */
 a,
 button,
 select,
@@ -98,8 +95,7 @@ select {
 }
 canvas {
   touch-action: none;
-  /* Improve blurriness at certain devicePixelRatios. */
-  image-rendering: pixelated; /* chromium */
-  image-rendering: -moz-crisp-edges; /* firefox. NOTE: must be declared *after* the above */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
   @apply absolute inset-0 h-full w-full;
 }
