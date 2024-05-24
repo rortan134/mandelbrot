@@ -15,11 +15,32 @@ import * as React from "react";
 export const dynamic = "force-static";
 
 const color = [200, 0, 255] as const;
-const divergencia = 50;
-const profundidad = 400;
+const divergencia = 100;
+const profundidad = 350;
 const multiplicadorZoom = 0.8;
 const escape_value = divergencia * divergencia;
 const posicionInicial = [-0.5, 0] as [number, number];
+
+function map(
+  input: number,
+  input_min: number,
+  input_max: number,
+  output_min: number,
+  output_max: number,
+) {
+  const input_normalizado = (input - input_min) / (input_max - input_min);
+  const input_mapped =
+    output_min + input_normalizado * (output_max - output_min);
+  return input_mapped;
+}
+
+function reiniciar_canvas(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+) {
+  ctx.fillStyle = "#0E0B16";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
 export default function HomePage() {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -51,6 +72,7 @@ export default function HomePage() {
         posicion[0] - escala,
         posicion[0] + escala,
       );
+
       for (let j = 0; j < height; j++) {
         const componente_imaginario = map(
           j,
@@ -59,11 +81,12 @@ export default function HomePage() {
           posicion[1] - escala,
           posicion[1] + escala,
         );
-        let contador = 0;
+
         let real = 0;
         let imaginary = 0;
+        let iteracions = 0;
 
-        while (contador < profundidad) {
+        while (iteracions < profundidad) {
           const temp_real =
             real * real - imaginary * imaginary + componente_real;
           imaginary = 2 * real * imaginary + componente_imaginario;
@@ -72,18 +95,18 @@ export default function HomePage() {
           if (real * real + imaginary * imaginary > escape_value) {
             break;
           }
-          contador++;
+          iteracions++;
         }
 
         const rgb_index = (i + j * width) * 4;
-        if (contador == profundidad) {
+        if (iteracions == profundidad) {
           // Punt no fa part de la fractal, el pintem de negre
           rgb[rgb_index] = 0;
           rgb[rgb_index + 1] = 0;
           rgb[rgb_index + 2] = 0;
         } else {
           // Punt fa part de la fractal, el pintem de color
-          const intensidad = Math.sqrt(map(contador, 0, profundidad, 0, 1));
+          const intensidad = Math.sqrt(map(iteracions, 0, profundidad, 0, 1));
           rgb[rgb_index] = intensidad * color[0];
           rgb[rgb_index + 1] = intensidad * color[1];
           rgb[rgb_index + 2] = intensidad * color[2];
@@ -91,19 +114,6 @@ export default function HomePage() {
       }
     }
     ctx.putImageData(image_data, 0, 0);
-  }
-
-  function map(
-    input: number,
-    input_min: number,
-    input_max: number,
-    output_min: number,
-    output_max: number,
-  ) {
-    const input_normalizado = (input - input_min) / (input_max - input_min);
-    const input_mapped =
-      output_min + input_normalizado * (output_max - output_min);
-    return input_mapped;
   }
 
   function handle_zoom(event: React.MouseEvent) {
@@ -145,14 +155,6 @@ export default function HomePage() {
     positionRef.current = posicionInicial;
     scaleRef.current = 2;
     dibuixar_mandelbrot(positionRef.current, scaleRef.current, canvas, ctx);
-  }
-
-  function reiniciar_canvas(
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D,
-  ) {
-    ctx.fillStyle = "#0E0B16";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
   function recalcularVentana(

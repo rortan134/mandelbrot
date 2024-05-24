@@ -7,6 +7,7 @@ const config = {
   eslint: { dirs: ["."], ignoreDuringBuilds: true },
   distDir: ENABLE_STATIC_EXPORT ? "build" : ".next",
   output: ENABLE_STATIC_EXPORT ? "export" : undefined,
+  swcMinify: true,
 };
 
 export default config;

@@ -11,7 +11,6 @@ const APP_NAME = "TDR Gilberto";
 const title = `${APP_NAME}`;
 const description = "TDR Gilberto";
 
-
 export const viewport: Viewport = {
   width: "device-width",
   height: "device-height",
@@ -72,11 +71,10 @@ export default function RootLayout({
 }) {
   return (
     <html
-      lang="en"
+      lang="es"
       dir="ltr"
-      tabIndex={-1}
-      suppressHydrationWarning
       className={GeistSans.variable}
+      suppressHydrationWarning
     >
       <body className="dark">
         <Theme
