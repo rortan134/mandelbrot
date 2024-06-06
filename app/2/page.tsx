@@ -9,9 +9,9 @@ import {
   Text,
   Badge,
   Strong,
+  Tabs
 } from "@radix-ui/themes";
 import * as React from "react";
-import * as Collapsible from "@radix-ui/react-collapsible";
 
 export const dynamic = "force-static";
 
@@ -196,91 +196,45 @@ export default function HomePage() {
       id="main"
       tabIndex={-1}
       role="main"
-      className="h-screen"
-      style={{
-        width: "100%",
-        position: "relative",
-        isolation: "isolate",
-        zIndex: 0,
-      }}
+      className="relative isolate h-screen w-full"
     >
       <Container
-        position="absolute"
-        minWidth="0px"
-        maxWidth="20rem"
-        width="100%"
-        top="2rem"
-        left="2rem"
+        style={{
+          width: "100%",
+          maxWidth: "20rem",
+          minWidth: "0",
+          position: "absolute",
+          top: "2rem",
+          left: "2rem",
+        }}
       >
-        <Collapsible.Root defaultOpen asChild>
-          <Flex direction="column" gap="3">
-            <Collapsible.Content>
-              <Flex direction="column" gap="2">
-                <Flex gap="2" style={{ pointerEvents: "none" }}>
-                  <Badge size="2" style={{ width: "fit-content" }}>
-                    f(z) = z² + c
-                  </Badge>
-                  <Badge size="2" style={{ width: "fit-content" }}>
-                    Per: Gilberto Samaritano Junior
-                  </Badge>
-                </Flex>
-                <Heading
-                  size="5"
-                  weight="bold"
-                  style={{ pointerEvents: "none" }}
-                >
-                  Demostració. Fractal de Mandelbrot: Ús artistic de les
-                  funcions iterades en matemàtiques
-                </Heading>
-                <Text size="2" color="gray" style={{ pointerEvents: "none" }}>
-                  Fes clic per <Strong>augmentar la escala</Strong> de la
-                  fractal
-                </Text>
-              </Flex>
-            </Collapsible.Content>
-            <Flex gap="3" align="center">
-              <Button
-                style={{ width: "fit-content" }}
-                onClick={reiniciar_fractal}
-              >
-                Reiniciar
-              </Button>
-              <Collapsible.Trigger asChild>
-                <Button
-                  size="1"
-                  variant="ghost"
-                  className="group"
-                  style={{ width: "fit-content" }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="transition-transform group-data-[state=open]:rotate-180"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </Button>
-              </Collapsible.Trigger>
-            </Flex>
+        <Flex direction="column" gap="2">
+          <Flex gap="2" style={{ pointerEvents: "none" }}>
+            <Badge size="2" style={{ width: "fit-content" }}>
+              f(z) = z² + c
+            </Badge>
+            <Badge size="2" style={{ width: "fit-content" }}>
+              Per: Gilberto Samaritano Junior
+            </Badge>
           </Flex>
-        </Collapsible.Root>
+          <Heading size="5" weight="bold" style={{ pointerEvents: "none" }}>
+            Demostració. Fractal de Mandelbrot: Ús artistic de les funcions
+            iterades en matemàtiques
+          </Heading>
+          <Text size="2" color="gray" style={{ pointerEvents: "none" }}>
+            Fes clic per <Strong>augmentar la escala</Strong> de la fractal
+          </Text>
+          <Button
+            style={{ width: "fit-content" }}
+            onClick={reiniciar_fractal}
+            onPointerDown={reiniciar_fractal}
+          >
+            Reiniciar
+          </Button>
+        </Flex>
       </Container>
       <canvas
-        style={{
-          cursor: "zoom-in",
-          inset: "0px",
-          position: "absolute",
-          zIndex: -10,
-          width: "100%",
-          height: "100%",
-        }}
+        className="absolute inset-0 -z-10 h-full w-full cursor-zoom-in"
         ref={React.useCallback((node: HTMLCanvasElement | null) => {
           if (node) {
             canvasRef.current = node;
